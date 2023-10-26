@@ -6,9 +6,7 @@ import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.vinni.entidad.Usuario;
 import com.vinni.entidad.Vehiculo;
-import com.vinni.repositorios.UsuarioRepositorio;
 
 import com.vinni.repositorios.VehiculoRepositorio;
 
@@ -21,32 +19,11 @@ import jakarta.jws.WebService;
 public class SOAPImplementacion {
 
     @Autowired
-    private UsuarioRepositorio usuarioRepositorio;
-
-    @Autowired
     private VehiculoRepositorio vehiculoRepositorio;
-
-    // private Datos datos = new Datos();
-
-    @WebMethod(operationName = "adicionar")
-    private void addUsuario(@WebParam Usuario usuario) {
-        usuarioRepositorio.save(usuario);
-    }
-
-    @WebMethod(operationName = "obtener")
-    private List<Usuario> getUsuarios() {
-        return usuarioRepositorio.findAll();
-    }
 
     @WebMethod(operationName = "obtenerVehiculos")
     public List<Vehiculo> consultarVehiculos() {
         return vehiculoRepositorio.findAll();
-    }
-
-    @WebMethod(operationName = "obtenerVehiculo")
-    public Vehiculo obtenerVehiculo(@WebParam(name = "placaVehiculo") String placa){
-        Vehiculo vehiculo = vehiculoRepositorio.findById(placa).orElse(null);
-        return vehiculo;
     }
 
     @WebMethod(operationName = "consultaValorSeguro")
@@ -64,38 +41,14 @@ public class SOAPImplementacion {
         double porcentaje = (porcentajeAntiguedad / 100) + 0.1;
 
         Long Seguro = (long) (vehiculo.getPrecio() * porcentaje);
-
         return Seguro;
-    }
-
-    @WebMethod(operationName = "consultaValorSeguro2")
-    private Long consultaValorSeguro2(@WebParam(name = "placaVehiculo") String placa) {
-        Optional<Vehiculo> vehiculoOptional = vehiculoRepositorio.findById(placa);
-        if (vehiculoOptional.isPresent()) {
-            Vehiculo vehiculo = vehiculoOptional.get();
-            return vehiculo.consultarSeguro();
-        } else {
-            // Manejo de vehículo no encontrado
-            return null;
-        }
-    }
-
-    @WebMethod(operationName = "consultaValorSeguro3")
-    private Long consultaValorSeguro3(@WebParam(name = "placaVehiculo") String placa) {
-        Optional<Vehiculo> vehiculoOptional = vehiculoRepositorio.findById(placa);
-        if (vehiculoOptional.isPresent()) {
-            Vehiculo vehiculo = vehiculoOptional.get();
-            return vehiculo.getValorSeguro();
-        } else {
-            // Manejo de vehículo no encontrado
-            return null;
-        }
     }
 
     @WebMethod(operationName = "crearVehiculo")
     public boolean crearVehiculo(@WebParam(name = "placaVehiculo") String placa,
             @WebParam(name = "modeloVehiculo") int modelo, @WebParam(name = "precioVehiculo") long precio,
-            @WebParam(name = "ultimoAnoSOAT") int ultimoAnoPagoSOAT) {
+            @WebParam(name = "ultimoAnoSOAT") int ultimoAnoPagoSOAT,
+            @WebParam(name = "tipoVehiculo") String tipoVehiculo) {
         try {
             // Verificar si ya existe un vehículo con la misma placa
             Optional<Vehiculo> existingVehiculo = vehiculoRepositorio.findById(placa);
@@ -104,7 +57,7 @@ public class SOAPImplementacion {
                 return false;
             } else {
                 // Crear un nuevo vehículo
-                Vehiculo vehiculo = new Vehiculo(placa, modelo, precio, ultimoAnoPagoSOAT);
+                Vehiculo vehiculo = new Vehiculo(placa, modelo, precio, ultimoAnoPagoSOAT, tipoVehiculo);
                 vehiculoRepositorio.save(vehiculo);
                 return true;
             }
@@ -143,17 +96,34 @@ public class SOAPImplementacion {
         return "Valor SOAT: " + valorSOAT + ", Estado: " + estado;
     }
 
-    @WebMethod(operationName = "consultarTodoRiesgo")
-    public Long consultarTodoRiesgo(@WebParam(name = "placaVehiculo") String placa) {
-        Vehiculo vehiculo = vehiculoRepositorio.findById(placa).orElse(null);
-        if (vehiculo == null) {
-            return null;
+    @WebMethod(operationName = "eliminarVehiculo")
+    public boolean eliminarVehiculo(@WebParam(name = "placaVehiculo") String placa) {
+        try {
+            Optional<Vehiculo> existingVehiculo = vehiculoRepositorio.findById(placa);
+            if (existingVehiculo.isPresent()) {
+                vehiculoRepositorio.deleteById(placa);
+                return true;
+            } else {
+                return false;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
         }
-
-        double porcentaje = 0.05; // 5%
-        Long valorSeguroTodoRiesgo = (long) (vehiculo.getPrecio() * porcentaje);
-
-        return valorSeguroTodoRiesgo;
     }
-    //metodos?
+
+    @WebMethod(operationName = "picoYPlacaSolidario")
+    public String picoYPlacaSolidario(@WebParam(name = "placaVehiculo") String placa) {
+        Optional<Vehiculo> vehiculoOptional = vehiculoRepositorio.findById(placa);
+
+        if(vehiculoOptional.isPresent()){
+            if ("motocicleta".equalsIgnoreCase(vehiculoOptional.get().getTipoVehiculo())){
+                return "Las motocicletas no tienen que pagar el pico y placa solidario";
+            }else{
+                return "El valor del pico y placa solidario es: Diario: $58.178, Mensual: $464.974 y valor $2.325.095";
+            }
+        }else{
+            return "Vehiculo no encontrado";
+        }
+    }
 }
